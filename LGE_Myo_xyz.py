@@ -1,3 +1,5 @@
+#%% Import required libraries
+
 import numpy
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
 import scipy
@@ -17,7 +19,7 @@ path2 = r'Please enter the path where the myocardium masks in .nii format are lo
 MYOs = glob.glob(path2 + "/*")
 
 
-#%%
+#%% Load the trained networks
 smooth = 1.
 def dice_coef(y_true, y_pred):
     y_true_f = K.flatten(y_true)
@@ -27,10 +29,10 @@ def dice_coef(y_true, y_pred):
 
 def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
-#%
-myo_xy_model = load_model('segment-myo_xy.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss})
+
+myo_xy_model = load_model('segment_myo_xy.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss})
 myo_xz_model = load_model('segment_myo_xz.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
-myo_yz_model = load_model('segment-myo_yz.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
+myo_yz_model = load_model('segment_myo_yz.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
 #%%
 
    
@@ -45,6 +47,7 @@ def myo_segment(img_test):
     
     myo_clean = scipy.ndimage.morphology.binary_dilation(myo_clean,  iterations=3)
     myo_clean = scipy.ndimage.morphology.binary_erosion(myo_clean)
+    
     return(myo_clean)
    
 
@@ -59,12 +62,6 @@ def model_xy_evaluate(data,mask):
         
         myo_clean = myo_segment(img_test)
         myo_clean = myo_clean[:x, :y]
-        
-        
-        mask_clean = scipy.ndimage.morphology.binary_dilation(mask_sample,  iterations=2)
-        mask_clean = scipy.ndimage.morphology.binary_erosion(mask_clean)
-        mask_clean = mask_clean*1
-        mask_clean = mask_clean[:x, :y]
         
         myo_xy[:,:,k] = myo_clean
         
@@ -91,11 +88,6 @@ def model_xz_evaluate(data,mask):
         seg_clean = scipy.ndimage.morphology.binary_erosion(seg_clean)
         seg_clean = seg_clean*1    
         seg_clean = seg_clean[:x, :z]
-        
-        mask_clean = scipy.ndimage.morphology.binary_dilation(mask_sample,  iterations=2)
-        mask_clean = scipy.ndimage.morphology.binary_erosion(mask_clean)
-        mask_clean = mask_clean*1
-        mask_clean = mask_clean[:x, :z]
         
         img_test = img_test.reshape(x_unet, y_unet)
         img_orig[:,k,:] = img_test[:x, :z]
@@ -126,11 +118,6 @@ def model_yz_evaluate(data,mask):
         seg_clean = scipy.ndimage.morphology.binary_erosion(seg_clean) 
         seg_clean = seg_clean*1    
         seg_clean = seg_clean[:y, :z]
-        
-        mask_clean = scipy.ndimage.morphology.binary_dilation(mask_sample,  iterations=2)
-        mask_clean = scipy.ndimage.morphology.binary_erosion(mask_clean)
-        mask_clean = mask_clean*1
-        mask_clean = mask_clean[:y, :z]
         
 
         myo_yz[k,:,:] = seg_clean
@@ -357,10 +344,13 @@ for n in range(18,34):
     vol_seg = numpy.append(vol_seg,numpy.sum(myo_clean)*1.3*0.625*0.625/1000)     
     sec =  numpy.append(sec,(time.time() - start_time)) 
         
-
-    #new_img = nib.Nifti1Image(myo_clean, data_myo.affine, data_myo.header)
-    #nib.save(new_img, "myo_%d.nii.gz"%n)    
-#%   
+    # Save new myocardium masks generated from this algorithm to be used as a ground truth for the next step when the myocardium
+    # is used as a region of interest for scar tissue segmentation. 
+    new_img = nib.Nifti1Image(myo_clean, data_myo.affine, data_myo.header)
+    nib.save(new_img, "myo_%d.nii.gz"%n)   
+    
+    
+#%%   
 print('Mean Values:')    
 print('DI is :', round(numpy.mean(dsc_total),2) , '+', round(numpy.std(dsc_total),2))
 print('Acc. is :', round(numpy.mean(acc_total),2), '+', round(numpy.std(acc_total),2))
@@ -373,30 +363,3 @@ print('Acc. is :', round(numpy.median(acc_total),2), '+', round(numpy.std(acc_to
 print('Precision is :', round(numpy.median(prec_total),2), '+', round(numpy.std(prec_total),2))
 print('Recall is :', round(numpy.median(rec_total),2), '+', round(numpy.std(rec_total),2))
 
-#%%
-for page in range(myo_final.shape[2]):
-#for page in range(30,60):
-    #plt.figure(page)
-    #plt.imshow(myo_clean[:,:,page]*80,cmap='gray')
-    
-    fig, axes = plt.subplots(1, 3, figsize=(8, 8))
-    ax = axes.flatten()
-    
-    ax[0].imshow(lge[:,:,page], cmap="gray")
-    ax[0].set_axis_off()
-    ax[0].contour(myo_clean[:,:,page], [0.5], colors='r')
-    ax[0].contour(gt_clean[:,:,page], [2], colors='c')
-    #ax[0].contour(myo_clean, [0.5], colors='y')
-    ax[0].set_title(k, fontsize=10)
-    #ax[0].set_title("Morphological ACWE segmentation", fontsize=12)
-    
-    ax[1].imshow(myo_clean[:,:,page], cmap="gray")
-    ax[2].imshow(gt_clean[:,:,page], cmap="gray")
-    
-    #ax[0].imshow(img_test.reshape(x,y), cmap="gray")
-    #ax[0].set_axis_off()
-    #ax[0].contour(seg_clean, [0.5], colors='r')
-#%%    
-    new_img = nib.Nifti1Image(myo_clean, data_myo.affine, data_myo.header)
-    nib.save(new_img, "myo%d.nii.gz"%n)    
-   
