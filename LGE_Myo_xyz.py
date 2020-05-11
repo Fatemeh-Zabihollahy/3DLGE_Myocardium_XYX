@@ -1,47 +1,21 @@
-'''
-Created on Thu Oct 25 13:50:42 2018
-
-@author: Fatemeh
-'''
-#%%
-
 import numpy
-from PIL import Image
-from numpy import *
-import math
-import sklearn
-from sklearn.utils import shuffle
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
-from sklearn.mixture import GaussianMixture
 import scipy
-from scipy.ndimage.interpolation import zoom
-from skimage.measure import block_reduce
-import skimage
 from skimage import morphology
-from skimage.morphology import erosion
-from keras.models import Model, load_model
-from keras.layers import Input
-from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.merge import concatenate
-#from keras import backend as K
-from keras.models import *
-from keras.layers import Input, merge, Conv2D, MaxPooling2D, UpSampling2D, Cropping2D, ZeroPadding2D
-from keras.layers.normalization import BatchNormalization
-from keras.optimizers import *
-from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping
+from keras.models import load_model
 import nibabel as nib
-import tensorflow
 import glob
 from matplotlib import pyplot as plt
 
-path1 = r'D:\Projects\FullyAuto_Scar_Unet\LGE Cardiac MRI\LGE Images nii'
+
+#% Load 3D LGE CMRIs along with the myocardium masks
+
+path1 = r'Please enter the path where the LGE CMRIs in .nii format are located.'
 LGEs = glob.glob(path1 + "/*")
 
-path2 = r'D:\Projects\FullyAuto_Scar_Unet\LGE Cardiac MRI\Myocardial Masks nii'
+path2 = r'Please enter the path where the myocardium masks in .nii format are located.'
 MYOs = glob.glob(path2 + "/*")
+
 
 #%%
 smooth = 1.
@@ -54,9 +28,9 @@ def dice_coef(y_true, y_pred):
 def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
 #%
-myo_xy_model = load_model('myo_xy1.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss})
-myo_xz_model = load_model('myo_xz2.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
-myo_yz_model = load_model('myo_yz1.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
+myo_xy_model = load_model('segment-myo_xy.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss})
+myo_xz_model = load_model('segment_myo_xz.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
+myo_yz_model = load_model('segment-myo_yz.hdf5', custom_objects={'dice_coef': dice_coef,'dice_coef_loss': dice_coef_loss}) 
 #%%
 
    
